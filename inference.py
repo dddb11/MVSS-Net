@@ -74,6 +74,7 @@ if __name__ == '__main__':
         for ix, (img_path, _, _) in enumerate(test_data):
             img = cv2.imread(img_path)
             ori_size = img.shape
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             img = cv2.resize(img, (new_size, new_size))
             seg, _ = inference_single(img=img, model=model, th=0)
             save_seg_path = os.path.join(save_path, 'pred', os.path.split(img_path)[-1].split('.')[0] + '.png')
