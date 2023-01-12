@@ -7,6 +7,151 @@ from torch.utils.data import Dataset
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 
+from albumentations.core.transforms_interface import DualTransform
+
+
+
+class RandomCopyMove(DualTransform):
+    def __init__(self,
+        max_h = 256,
+        max_w = 256,
+        min_h = 50,
+        min_w = 50,
+        mask_value = 255,
+        always_apply = False,
+        p = 0.5,  
+    ):
+        super(RandomCopyMove, self).__init__(always_apply, p)
+        self.max_h = max_h
+        self.max_w = max_w
+        self.min_h = min_h
+        self.min_w = min_w
+        self.mask_value = mask_value
+        
+    def _get_random_window(
+        self, 
+        img_height, 
+        img_width, 
+        window_height = None, 
+        window_width = None
+    ):
+        assert self.max_h < img_height , f"Image height should larger than max_h, but get max_h:{self.max_h} img_height:{img_height}!"
+         
+        assert self.max_w < img_width , f"Image height should larger than max_h, but get max_h:{self.max_w} img_height:{img_width}!"
+        
+        if window_width == None or window_height == None:
+            window_h = np.random.randint(self.min_h, self.max_h)
+            window_w = np.random.randint(self.min_w, self.max_w)
+        else:
+            window_h = window_height
+            window_w = window_width
+
+        # position of left up corner of the window
+        pos_h = np.random.randint(0, img_height - window_h)
+        pos_w = np.random.randint(0, img_width - window_w)
+        
+        return pos_h, pos_w , window_h, window_w
+        
+        
+    def apply(self, img: np.ndarray, **params) -> np.ndarray:
+        image = img.copy()
+        H, W, _ = image.shape
+        # copy region:
+        c_pos_h, c_pos_w, c_window_h, c_window_w = self._get_random_window(H, W)
+        
+        # past region, window size is defined by copy region:
+        self.p_pos_h, self.p_pos_w, self.p_window_h, self.p_window_w = self._get_random_window(H, W, c_window_h, c_window_w)
+          
+        copy_region = image[
+            c_pos_h: c_pos_h + c_window_h, 
+            c_pos_w: c_pos_w + c_window_w, 
+            : 
+        ]
+        print(copy_region.shape)
+        image[
+            self.p_pos_h : self.p_pos_h + self.p_window_h,
+            self.p_pos_w : self.p_pos_w + self.p_window_w,
+            :
+        ] = copy_region
+        return image
+        
+
+    def apply_to_mask(self, img: np.ndarray, **params) -> np.ndarray:
+        """
+        change the mask of manipulated region to 1
+        """
+    
+        manipulated_region =  np.full((self.p_window_h, self.p_window_w), 1)
+        img = img.copy()
+        print(manipulated_region.shape)
+        print(self.p_window_w, self.p_window_h)
+        img[
+            self.p_pos_h : self.p_pos_h + self.p_window_h,
+            self.p_pos_w : self.p_pos_w + self.p_window_w,
+        ] = self.mask_value
+        return img
+        
+class RandomInpainting(DualTransform):
+    def __init__(self,
+        max_h = 256,
+        max_w = 256,
+        min_h = 50,
+        min_w = 50,
+        mask_value = 255,
+        always_apply = False,
+        p = 0.5,  
+    ):
+        super(RandomInpainting, self).__init__(always_apply, p)
+        self.max_h = max_h
+        self.max_w = max_w
+        self.min_h = min_h
+        self.min_w = min_w
+        self.mask_value = mask_value
+        
+    def _get_random_window(
+        self, 
+        img_height, 
+        img_width, 
+    ):
+        assert self.max_h < img_height , f"Image height should larger than max_h, but get max_h:{self.max_h} img_height:{img_height}!"
+         
+        assert self.max_w < img_width , f"Image height should larger than max_h, but get max_h:{self.max_w} img_height:{img_width}!"
+        
+        window_h = np.random.randint(self.min_h, self.max_h)
+        window_w = np.random.randint(self.min_w, self.max_w)
+
+        # position of left up corner of the window
+        pos_h = np.random.randint(0, img_height - window_h)
+        pos_w = np.random.randint(0, img_width - window_w)
+        
+        return pos_h, pos_w , window_h, window_w
+    def apply(self, img: np.ndarray, **params) -> np.ndarray:
+        img = img.copy()
+        img = np.uint8(img)
+        print(img.dtype)
+        H, W, C = img.shape
+        mask = np.zeros((H, W), dtype=np.uint8)
+        # inpainting region
+        self.pos_h, self.pos_w , self.window_h, self.window_w = self._get_random_window(H, W)
+        mask[
+            self.pos_h : self.pos_h+ self.window_h,
+            self.pos_w : self.pos_w + self.window_w,
+        ] = 1
+        print(mask.shape)
+        inpaint_flag = cv2.INPAINT_TELEA if random.random() > 0.5 else cv2.INPAINT_NS
+        print(inpaint_flag)
+        img = cv2.inpaint(img, mask, 3,inpaint_flag)
+        return img
+    def apply_to_mask(self, img: np.ndarray, **params) -> np.ndarray:
+        """
+        change the mask of manipulated region to 1
+        """
+        img = img.copy()
+        img[
+            self.pos_h : self.pos_h+ self.window_h,
+            self.pos_w : self.pos_w + self.window_w,
+        ] = self.mask_value
+        return img
 class DeepfakeDataset(Dataset):
     def sampling(self, distribution, n_max):
         if self.n_c_samples is None:
@@ -15,7 +160,6 @@ class DeepfakeDataset(Dataset):
         for label_str in distribution:
             list = distribution[label_str]
             n_list = len(list)
-
             if (n_list >= self.n_c_samples):
                 # undersampling
                 picked = random.sample(list, self.n_c_samples)
@@ -101,9 +245,32 @@ class DeepfakeDataset(Dataset):
         #  TODO: Transforms for data augmentation (more augmentations should be added)
         # ----------
         self.transform_train = A.Compose([
-            A.Resize(self.image_size, self.image_size),
+            A.Resize(
+                self.image_size,
+                self.image_size
+            ),
+            A.RandomBrightnessContrast(
+                brightness_limit=(-0.1, 0.1),
+                contrast_limit=0.1,
+                p=1
+            ),
+            # Rotate
+            A.RandomRotate90(p=0.5),
             A.HorizontalFlip(),
             A.VerticalFlip(),
+            A.Blur(p=0.3),
+            A.ImageCompression(
+                quality_lower = 70,
+                quality_upper = 100,
+                p = 0.2
+            ),
+            RandomCopyMove(
+                p = 0.1
+            ),
+            RandomInpainting(
+                p = 0.1
+            ),
+            A.Normalize(),
             ToTensorV2()
         ])
 
@@ -181,3 +348,49 @@ class DeepfakeDataset(Dataset):
 
     def __len__(self):
         return len(self.input_image_paths)
+
+if __name__ == "__main__":
+    import matplotlib.pyplot as plt
+    img = plt.imread("/root/workspace/MVSS/CASIAv1/TP/Sp/Sp_D_CND_A_pla0005_pla0023_0281.jpg")
+    mask = cv2.imread("/root/workspace/MVSS/CASIAv1/Gt/Sp_D_CND_A_pla0005_pla0023_0281_gt.png", cv2.IMREAD_GRAYSCALE)
+    print(np.max(mask))
+    plt.subplot(1, 4, 1)
+    plt.imshow(img)
+    plt.subplot(1, 4 ,2)
+    plt.imshow(mask)
+    trans = A.Compose([
+            A.Resize(
+                512,
+                512
+            ),
+            A.RandomBrightnessContrast(
+                brightness_limit=(-0.1, 0.1),
+                contrast_limit=0.1,
+                p=1
+            ),
+            # Rotate
+            A.RandomRotate90(p=0.5),
+            A.HorizontalFlip(),
+            A.VerticalFlip(),
+            A.Blur(p=0.3),
+            A.ImageCompression(
+                quality_lower = 70,
+                quality_upper = 100,
+                p = 0.2
+            ),
+            RandomCopyMove(
+                p = 0.1
+            ),
+            RandomInpainting(
+                p = 0.1
+            ),
+            # A.Normalize(),
+            # ToTensorV2()
+        ])
+
+    res = trans(image= img, mask = mask)
+    plt.subplot(1, 4, 3)
+    plt.imshow(res['image'])
+    plt.subplot(1, 4, 4)
+    plt.imshow(res['mask'])
+    plt.savefig("view.png")
