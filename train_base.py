@@ -431,9 +431,11 @@ def train(args, global_rank, sync, get_module,
             writer.add_scalar("Epoch Loss/Edge", epoch_avg_edg, epoch)
             writer.add_scalar("Epoch Loss/Image-scale", epoch_avg_clf, epoch)
             writer.add_scalar("Epoch Loss/Val", epoch_val_loss_avg, epoch)
-
+            if torch.max(in_imgs) > 1 or torch.min(in_imgs) < 0:
+                in_imgs = denormalize(in_imgs)
             writer.add_images('Epoch Input Img', in_imgs, epoch)
-
+            if len(in_masks.shape) == 3:
+                in_masks = in_masks.unsqueeze(1)
             writer.add_images('Epoch Input Mask', in_masks, epoch)
             writer.add_images('Epoch Output Mask', out_masks, epoch)
             writer.add_images('Epoch Input Edge', in_edges, epoch)
