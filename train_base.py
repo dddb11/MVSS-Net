@@ -219,6 +219,15 @@ def save_checkpoints(checkpoint_dir, id, epoch, step, get_module,
     torch.save(net.state_dict(),
                 os.path.join(checkpoint_dir, str(id) + "_" + str(epoch) + '_' + str(step) + '.pth'))
 
+def denormalize(image, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
+    """denormalize image with mean and std
+    """
+    image = image.clone().detach().cpu()
+    image = image * torch.tensor(std).view(3, 1, 1)
+    image = image + torch.tensor(mean).view(3, 1, 1)
+    return image
+
+
 # a single step of prediction and loss calculation (same for both training and validating)
 def predict_loss(args, data, model,
                  criterion_BCE,
@@ -341,9 +350,9 @@ def train(args, global_rank, sync, get_module,
                 writer.add_scalar("Loss/Pixel-scale", weighted_loss_seg, curr_steps)
                 writer.add_scalar("Loss/Edge", weighted_loss_edg, curr_steps)
                 writer.add_scalar("Loss/Image-scale", weighted_loss_clf, curr_steps)
-
+                in_imgs = denormalize(in_imgs)
                 writer.add_images('Input Img', in_imgs, epoch * len(dataloader) + step)
-
+                in_masks = in_masks.unsqueeze(1)
                 writer.add_images('Input Mask', in_masks, epoch * len(dataloader) + step)
                 writer.add_images('Output Mask', out_masks, epoch * len(dataloader) + step)
                 writer.add_images('Input Edge', in_edges, epoch * len(dataloader) + step)
@@ -422,9 +431,11 @@ def train(args, global_rank, sync, get_module,
             writer.add_scalar("Epoch Loss/Edge", epoch_avg_edg, epoch)
             writer.add_scalar("Epoch Loss/Image-scale", epoch_avg_clf, epoch)
             writer.add_scalar("Epoch Loss/Val", epoch_val_loss_avg, epoch)
-
+            if torch.max(in_imgs) > 1 or torch.min(in_imgs) < 0:
+                in_imgs = denormalize(in_imgs)
             writer.add_images('Epoch Input Img', in_imgs, epoch)
-
+            if len(in_masks.shape) == 3:
+                in_masks = in_masks.unsqueeze(1)
             writer.add_images('Epoch Input Mask', in_masks, epoch)
             writer.add_images('Epoch Output Mask', out_masks, epoch)
             writer.add_images('Epoch Input Edge', in_edges, epoch)
