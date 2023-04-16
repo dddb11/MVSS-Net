@@ -196,11 +196,11 @@ class RandomCopyMove(Transform_with_edge):
             self.p_pos_h : self.p_pos_h + self.p_window_h,
             self.p_pos_w : self.p_pos_w + self.p_window_w,
         ] = self.mask_value
+        self.latest_mask = img /255.0
         return img
 
     def apply_to_edge(self, img: np.ndarray, **params) -> np.ndarray:
-        mask = img.copy()
-        return self.edge_generator((mask > 0.5) * 1.0)[0][0]
+        return self.edge_generator((self.latest_mask > 0.5) * 1.0)[0][0]
         
 class RandomInpainting(Transform_with_edge):
     def __init__(self,
@@ -260,11 +260,12 @@ class RandomInpainting(Transform_with_edge):
             self.pos_h : self.pos_h+ self.window_h,
             self.pos_w : self.pos_w + self.window_w,
         ] = self.mask_value
+        self.latest_mask = img / 255.0
         return img
 
     def apply_to_edge(self, img: np.ndarray, **params) -> np.ndarray:
         mask = img.copy()
-        return self.edge_generator((mask > 0.5) * 1.0)[0][0]
+        return self.edge_generator((self.latest_mask > 0.5) * 1.0)[0][0]
 
 
 class DeepfakeDataset(Dataset):
