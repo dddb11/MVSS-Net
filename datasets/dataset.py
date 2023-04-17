@@ -7,6 +7,61 @@ import albumentations as A
 from albumentations.pytorch import ToTensorV2
 from torch.nn import functional as F
 from albumentations.core.transforms_interface import DualTransform
+from typing import Callable, Dict
+from albumentations.augmentations.geometric import Resize, RandomRotate90, HorizontalFlip, VerticalFlip
+from albumentations.augmentations.geometric.functional import resize as fresize
+from albumentations.augmentations.geometric.functional import hflip, hflip_cv2, vflip
+
+
+class Transform_with_edge(DualTransform):
+    @property
+    def targets(self) -> Dict[str, Callable]:
+        return {
+            "image": self.apply,
+            "mask": self.apply_to_mask,
+            "masks": self.apply_to_masks,
+            "bboxes": self.apply_to_bboxes,
+            "keypoints": self.apply_to_keypoints,
+            "edge": self.apply_to_edge,
+        }
+
+    def apply_to_edge(self, img: np.ndarray, **params) -> np.ndarray:
+        raise NotImplementedError
+
+
+class Resize_with_Edge(Transform_with_edge, Resize):
+    def __init__(self, height, width):
+        Resize.__init__(self, height, width)
+
+    def apply_to_edge(self, img: np.ndarray, interpolation=cv2.INTER_LINEAR, **params) -> np.ndarray:
+        return fresize(img, height=self.height//4, width=self.width//4, interpolation=interpolation)
+
+
+class Rotate_with_Edge(Transform_with_edge, RandomRotate90):
+    def __init__(self, p):
+        RandomRotate90.__init__(self, p)
+
+    def apply_to_edge(self, img: np.ndarray, factor=0, **params) -> np.ndarray:
+        return np.ascontiguousarray(np.rot90(img, factor))
+
+
+class HorizontalFlip_with_Edge(Transform_with_edge, HorizontalFlip):
+    def __init__(self):
+        HorizontalFlip.__init__(self)
+
+    def apply_to_edge(self, img: np.ndarray, **params) -> np.ndarray:
+        if img.ndim == 3 and img.shape[2] > 1 and img.dtype == np.uint8:
+            # Opencv is faster than numpy only in case of
+            # non-gray scale 8bits images
+            return hflip_cv2(img)
+        return hflip(img)
+
+class VerticalFlip_with_Edge(Transform_with_edge, VerticalFlip):
+    def __init__(self):
+        VerticalFlip.__init__(self)
+
+    def apply_to_edge(self, img: np.ndarray, **params) -> np.ndarray:
+        return vflip(img)
 
 
 class Edge_generator(torch.nn.Module):
@@ -77,7 +132,7 @@ class Edge_generator(torch.nn.Module):
         """
         return self._find_edge(x, self.kernel_size, return_all=return_all)
 
-class RandomCopyMove(DualTransform):
+class RandomCopyMove(Transform_with_edge):
     def __init__(self,
         max_h = 256,
         max_w = 256,
@@ -93,6 +148,7 @@ class RandomCopyMove(DualTransform):
         self.min_h = min_h
         self.min_w = min_w
         self.mask_value = mask_value
+        self.edge_generator = Edge_generator(kernel_size=15)
         
     def _get_random_window(
         self, 
@@ -152,9 +208,13 @@ class RandomCopyMove(DualTransform):
             self.p_pos_h : self.p_pos_h + self.p_window_h,
             self.p_pos_w : self.p_pos_w + self.p_window_w,
         ] = self.mask_value
+        self.latest_mask = img /255.0
         return img
+
+    def apply_to_edge(self, img: np.ndarray, **params) -> np.ndarray:
+        return self.edge_generator((self.latest_mask > 0.5) * 1.0)[0][0]
         
-class RandomInpainting(DualTransform):
+class RandomInpainting(Transform_with_edge):
     def __init__(self,
         max_h = 256,
         max_w = 256,
@@ -170,6 +230,7 @@ class RandomInpainting(DualTransform):
         self.min_h = min_h
         self.min_w = min_w
         self.mask_value = mask_value
+        self.edge_generator = Edge_generator(kernel_size=15)
         
     def _get_random_window(
         self, 
@@ -211,7 +272,14 @@ class RandomInpainting(DualTransform):
             self.pos_h : self.pos_h+ self.window_h,
             self.pos_w : self.pos_w + self.window_w,
         ] = self.mask_value
+        self.latest_mask = img / 255.0
         return img
+
+    def apply_to_edge(self, img: np.ndarray, **params) -> np.ndarray:
+        mask = img.copy()
+        return self.edge_generator((self.latest_mask > 0.5) * 1.0)[0][0]
+
+
 class DeepfakeDataset(Dataset):
     def sampling(self, distribution, n_max):
         if self.n_c_samples is None:
@@ -256,6 +324,7 @@ class DeepfakeDataset(Dataset):
         self.mask_image_paths = []
         self.edge_image_paths = []
         self.labels = []
+        self.edge_generator = Edge_generator(kernel_size=15)
         
         if ('cond' not in paths_file):
             distribution = dict()
@@ -269,6 +338,9 @@ class DeepfakeDataset(Dataset):
                     mask_image_path = parts[1]
                     edge_image_path = parts[2]
                     label_str = parts[3]
+                    if label_str == '1' and edge_image_path=='None':
+                        self.edge_generator((mask>0.5) * 1.0)[0][0]
+
 
                     # add to distribution
                     if (label_str not in distribution):
@@ -304,6 +376,21 @@ class DeepfakeDataset(Dataset):
         # ----------
         #  TODO: Transforms for data augmentation (more augmentations should be added)
         # ----------
+        self.triple_transforms = A.Compose([
+            Resize_with_Edge(
+                self.image_size,
+                self.image_size
+            ),
+            Rotate_with_Edge(p=0.5),
+            HorizontalFlip_with_Edge(),
+            VerticalFlip_with_Edge(),
+            RandomCopyMove(
+                p=0.1
+            ),
+            RandomInpainting(
+                p=0.1
+            )
+        ])
         self.transform_train = A.Compose([
             A.Resize(
                 self.image_size,
@@ -350,7 +437,7 @@ class DeepfakeDataset(Dataset):
             A.Resize(self.image_size // 4, self.image_size // 4), # specially for edge mask, as the paper uses H/4 and W/4
             ToTensorV2()
         ])
-        self.edge_generator =  Edge_generator(kernel_size= 15)
+
 
     def __getitem__(self, item):
         # ----------
