@@ -30,16 +30,25 @@ class Transform_with_edge(DualTransform):
 
 
 class Resize_with_Edge(Transform_with_edge, Resize):
+    def __init__(self, height, width):
+        Resize.__init__(self, height, width)
+
     def apply_to_edge(self, img: np.ndarray, interpolation=cv2.INTER_LINEAR, **params) -> np.ndarray:
         return fresize(img, height=self.height//4, width=self.width//4, interpolation=interpolation)
 
 
 class Rotate_with_Edge(Transform_with_edge, RandomRotate90):
+    def __init__(self, p):
+        RandomRotate90.__init__(self, p)
+
     def apply_to_edge(self, img: np.ndarray, factor=0, **params) -> np.ndarray:
         return np.ascontiguousarray(np.rot90(img, factor))
 
 
 class HorizontalFlip_with_Edge(Transform_with_edge, HorizontalFlip):
+    def __init__(self):
+        HorizontalFlip.__init__(self)
+
     def apply_to_edge(self, img: np.ndarray, **params) -> np.ndarray:
         if img.ndim == 3 and img.shape[2] > 1 and img.dtype == np.uint8:
             # Opencv is faster than numpy only in case of
@@ -48,6 +57,9 @@ class HorizontalFlip_with_Edge(Transform_with_edge, HorizontalFlip):
         return hflip(img)
 
 class VerticalFlip_with_Edge(Transform_with_edge, VerticalFlip):
+    def __init__(self):
+        VerticalFlip.__init__(self)
+
     def apply_to_edge(self, img: np.ndarray, **params) -> np.ndarray:
         return vflip(img)
 
