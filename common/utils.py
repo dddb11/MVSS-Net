@@ -40,10 +40,10 @@ def calculate_img_score(pd, gt):
     false_neg = np.logical_and(seg_inv, gt).sum()
     true_neg = float(np.logical_and(seg_inv, gt_inv).sum())
     acc = (true_pos + true_neg) / (true_pos + true_neg + false_neg + false_pos + 1e-6)
-    sen = true_pos / (true_pos + false_neg + 1e-6)
-    spe = true_neg / (true_neg + false_pos + 1e-6)
-    f1 = 2 * sen * spe / (sen + spe)
-    return acc, sen, spe, f1, true_pos, true_neg, false_pos, false_neg
+    precision = true_pos / (true_pos + false_pos + 1e-6)
+    recall = true_pos / (true_pos + false_neg + 1e-6)
+    f1 = 2 * precision * recall / (precision + recall)
+    return acc, precision, recall, f1, true_pos, true_neg, false_pos, false_neg
 
 
 def calculate_pixel_f1(pd, gt):
