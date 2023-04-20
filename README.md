@@ -6,14 +6,29 @@ Unofficial implementation of the MVSS-Net, which was proposed in ICCV 2021 by Ch
 
 The original repo is lacking the training code, links are here: [OFFICIAL MVSS-Net link](https://github.com/dong03/MVSS-Net/) we tried our best to reproduce the result of the model.
 
-> We need to point out that many researchers reported that they failed to reproduce the result in their paper. This is also our goal when building this repo, but in the end, our re-implementation also fails and the metrics are far from the metrics in the paper on the Columbia and COVER datasets. 
-> You could discuss this phenomenon with researchers through these links: [Zhihu(a Chinese forum)](https://zhuanlan.zhihu.com/p/422549140); [Issues of the official repo](https://github.com/dong03/MVSS-Net/issues).
+## Foreword
+**ALERT**: Although this method may seem like the current SOTA model, but the current results indicate that there are many doubts in this paper. We **do not recommend** using it as a replication model for the target or a model for learning when entering the field for the following reasons:
 
->Besides there is a known issue in the official repo where there is ambiguity in the calculation of the Image-level F1 score. However, they suspiciously benefit a lot from this ambiguous f1 score: [Link](https://github.com/dong03/MVSS-Net/issues/30).
+- Facts:
+  - We need to point out that many researchers reported that they failed to reproduce the result in their paper. Reaching the result in their paper is also our goal when building this repo, but in the end, our re-implementation could reach the pixel-level fixed threshold F1 score on CASIAv1 and NIST16 and Defacto, but far from Coverage and Columbia. Many existing researchers have made inferences that there may be data leakage on this two dataset.
+  - And for optimal F1, many researchers questioned for this absured metrics and send issues to the author, but the lead author of the article can only give ambiguous answers finally([issue](https://github.com/dong03/MVSS-Net/issues/11)), and unable to correctly clarify how the optimal f1 used in the paper comes from. The value of this optimal F1 can only reach a maximum of `0.62` by reserchers all over the Internet, while far below the 0.7 in the paper.
+  - Besides there is a known issue in the official repo where there is ambiguity in the calculation of the Image-level F1 score. However, **they suspiciously benefit a lot from this ambiguous f1 score**, detailed proof is provided in the following [Link](https://github.com/dong03/MVSS-Net/issues/30). 
+
+
+>You could discuss all phenomenon and stand together with researchers through these links: [Zhihu(a Chinese forum)](https://zhuanlan.zhihu.com/p/422549140); [Issues of the official repo](https://github.com/dong03/MVSS-Net/issues).
+
+- Our comments:
+  - From their official issue page, it can be seen that when faced with numerous researchers asking about training codes, there is no response at all. However, once the severe [F1 issue](https://github.com/dong03/MVSS-Net/issues/30) is pointed out and friendly discussions are conducted, **the author's arrogant treatment was received, and the issue was quickly closed with "nothing to do with honesty"**, which is full of arrogance and disrespect toward scientific research. 
+  - If you have reproduced this paper, you can discuss the reproduced indicators and inferred conclusions together in the issue of our repo. If you have suffered a lot due to their irresponsible articles, we also welcome everyone to discuss in the issue section of our repo.
 
 ## Enviroment
-Ubuntu 
-PyTorch 1.10.0 + cu111
+Ubuntu 18.04.5 LTS
+
+Python 3.9.15
+
+PyTorch 1.10.0 + cuda11.1
+
+Detail python librarys can found in [requirements.txt](./requirements.txt)
 
 ## Quick Start
 - Prepare your datasets:
@@ -22,7 +37,7 @@ PyTorch 1.10.0 + cu111
       - <path_to_input_image>
       - <path_to_groundtruth_mask> (For authentic image, here is `None`)
       - <path_to_edge_mask> (If not generated in advance, here could be `None`)
-      - <image_level_label> (0 or 1. 1 refers manipulated image, 0 for authentic image)
+      - <image_level_label> (0 or 1; 1 refers manipulated image, 0 for authentic image)
     
     - For example, each line in txt file should like this:
       - Authentic image:
@@ -38,19 +53,18 @@ PyTorch 1.10.0 + cu111
         ./Casiav2/tampered/Tp_D_CND_M_N_ani00018_sec00096_00138.tif ./Casiav2/mask/Tp_D_CND_M_N_ani00018_sec00096_00138_gt.png None 1
         ``` 
   - You should follow the format and generate your own "path file" in a `xxxx.txt`.
-> You could only use this Repo to generate the edge mask during training at this time. This will be a little bit slow. Since every Epoch you will generate a edge mask for each image, however, they are always the same edge mask. Better choice should be generate the edge mask from the ground truth mask before start training. This script will release later......
+> Limits: At this time, the edge mask can only be generated during training and cannot be pre generated.   This will be a little bit slow. Since every Epoch you will generate a edge mask for each image, however, they are always the same edge mask. Better choice should be generate the edge mask from the ground truth mask before start training. Script for pre-generate the edge mask will release later...
 
 - Then you could start to run this work, the main entrance is [train_launch.py](./train_launch.py). Since `torch.nn.parallel.DistributedDataParallel` is used, you need to use the following command to start the training:
   ```bash
   torchrun \
     --standalone \
     --nproc_per_node=<Number of your GPU> \
-  train_launch.py
-    --paths_file <your_own_path_txt file> \
-    --lr 1e-4
+  train_launch.py \
+    --paths_file <your own path txt file> 
   ```
-  - The content in the \<xxx\> above needs to be replaced with your personalized string or number
-  - The above instructions are only the most basic ones. If you want to further adjust the parameters, please refer to [here](https://github.com/dddb11/MVSS-Net/blob/09c589e19e01dfaf97151f9ee246be371863005c/train_base.py#L46).
+  - The content in the \<xxx\> above **needs to be replaced** with your personalized string or number.
+  - The above commands are only the most basic ones. If you want to further adjust the parameters, please refer to [here](https://github.com/dddb11/MVSS-Net/blob/09c589e19e01dfaf97151f9ee246be371863005c/train_base.py#L46).
 - You could use `Tensorboard` to monitor the progress of the model during training. Logs should under `./save/` path.
 
 ## Introduction

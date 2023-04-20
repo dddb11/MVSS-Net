@@ -1,0 +1,5 @@
+tqdm
+albumentations==1.3.0
+numpy
+tensorboard==2.11
+cv2
