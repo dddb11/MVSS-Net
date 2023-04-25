@@ -11,6 +11,48 @@ The original repo is lacking the training code, links are here: [OFFICIAL MVSS-N
 
 >Besides there is a known issue in the official repo where there is ambiguity in the calculation of the Image-level F1 score. However, they suspiciously benefit a lot from this ambiguous f1 score: [Link](https://github.com/dong03/MVSS-Net/issues/30).
 
+## Enviroment
+Ubuntu 
+PyTorch 1.10.0 + cu111
+
+## Quick Start
+- Prepare your datasets:
+  - All dataset images is managed with a `txt` file recording the path of `images`, `groundtruths` and `edge masks`(if have) and `image label`. This file follows the following format:
+    - Each line of this file should contain 4 elements, separate with a space:
+      - <path_to_input_image>
+      - <path_to_groundtruth_mask> (For authentic image, here is `None`)
+      - <path_to_edge_mask> (If not generated in advance, here could be `None`)
+      - <image_level_label> (0 or 1. 1 refers manipulated image, 0 for authentic image)
+    
+    - For example, each line in txt file should like this:
+      - Authentic image:
+        ```
+        ./Casiav2/authentic/Au_ani_00001.jpg None None 0
+        ``` 
+      - Manipulated image with pre-generated edge mask: 
+        ```
+        ./Casiav2/tampered/Tp_D_CND_M_N_ani00018_sec00096_00138.tif ./Casiav2/mask/Tp_D_CND_M_N_ani00018_sec00096_00138_gt.png ./Casiav2/edge/Tp_D_CND_M_N_ani00018_sec00096_00138_gt.png 1
+        ```
+      - Manipulated image without pre-generated edge mask: 
+        ```
+        ./Casiav2/tampered/Tp_D_CND_M_N_ani00018_sec00096_00138.tif ./Casiav2/mask/Tp_D_CND_M_N_ani00018_sec00096_00138_gt.png None 1
+        ``` 
+  - You should follow the format and generate your own "path file" in a `xxxx.txt`.
+> You could only use this Repo to generate the edge mask during training at this time. This will be a little bit slow. Since every Epoch you will generate a edge mask for each image, however, they are always the same edge mask. Better choice should be generate the edge mask from the ground truth mask before start training. This script will release later......
+
+- Then you could start to run this work, the main entrance is [train_launch.py](./train_launch.py). Since `torch.nn.parallel.DistributedDataParallel` is used, you need to use the following command to start the training:
+  ```bash
+  torchrun \
+    --standalone \
+    --nproc_per_node=<Number of your GPU> \
+  train_launch.py
+    --paths_file <your_own_path_txt file> \
+    --lr 1e-4
+  ```
+  - The content in the \<xxx\> above needs to be replaced with your personalized string or number
+  - The above instructions are only the most basic ones. If you want to further adjust the parameters, please refer to [here](https://github.com/dddb11/MVSS-Net/blob/09c589e19e01dfaf97151f9ee246be371863005c/train_base.py#L46).
+- You could use `Tensorboard` to monitor the progress of the model during training. Logs should under `./save/` path.
+
 ## Introduction
 Still on Working...
 
