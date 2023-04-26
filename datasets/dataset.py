@@ -338,8 +338,8 @@ class DeepfakeDataset(Dataset):
                     mask_image_path = parts[1]
                     edge_image_path = parts[2]
                     label_str = parts[3]
-                    if label_str == '1' and edge_image_path=='None':
-                        self.edge_generator((mask>0.5) * 1.0)[0][0]
+                    # if label_str == '1' and edge_image_path=='None':
+                        # self.edge_generator((mask>0.5) * 1.0)[0][0]
 
 
                     # add to distribution
@@ -462,7 +462,10 @@ class DeepfakeDataset(Dataset):
         # ----------
         edge_file_name = self.edge_image_paths[item]
         if (edge_file_name == "None"):
-            edge = np.zeros((height, width), np.uint8) # a totally black edge mask for real image
+            # edge = np.zeros((height, width), np.uint8) # a totally black edge mask for real image
+            tensor_mask = torch.tensor(mask)
+            edge = self.edge_generator(tensor_mask)
+            
         else:
             edge = cv2.imread(edge_file_name, cv2.IMREAD_GRAYSCALE)
 
