@@ -77,7 +77,7 @@ Still on Working...
 Still on Working...
 
 ## Result
-We trained for 200 epochs and used decay, and finally selected the best data for each epoch on each dataset.Here's the result.Please note that these are only approximate results and we did not make any further adjustments, so they should be taken as a reference only.
+We trained for 200 epochs and used decay, and finally selected the best data for each epoch on each dataset.Here's the result.Please note that these are only approximate results and we did not make any further adjustments, so they should be taken as a reference only.\
 CASIAv1：
 {'pixel_f1': 0.43, 'acc': 0.69, 'sen': 0.75, 'spe': 0.63, 'imagelevel_f1': 0.68, 'img_auc': 0.78, 'com_f1': 0.53, 'epoch': '11_end.pth'}
 {'pixel_f1': 0.4, 'acc': 0.74, 'sen': 0.55, 'spe': 0.95, 'imagelevel_f1': 0.7, 'img_auc': 0.8, 'com_f1': 0.51, 'epoch': '40_end.pth'}
