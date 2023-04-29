@@ -76,6 +76,24 @@ Still on Working...
 ## Some Comments
 Still on Working...
 
+## Result
+We trained for 200 epochs and used decay, and finally selected the best data for each epoch on each dataset.Here's the result.Please note that these are only approximate results and we did not make any further adjustments, so they should be taken as a reference only.
+CASIAv1：
+{'pixel_f1': 0.43, 'acc': 0.69, 'sen': 0.75, 'spe': 0.63, 'imagelevel_f1': 0.68, 'img_auc': 0.78, 'com_f1': 0.53, 'epoch': '11_end.pth'}
+{'pixel_f1': 0.4, 'acc': 0.74, 'sen': 0.55, 'spe': 0.95, 'imagelevel_f1': 0.7, 'img_auc': 0.8, 'com_f1': 0.51, 'epoch': '40_end.pth'}
+
+COVERAGE：
+{'pixel_f1': 0.33, 'acc': 0.52, 'sen': 0.96, 'spe': 0.08, 'imagelevel_f1': 0.15, 'img_auc': 0.56, 'com_f1': 0.2, 'epoch': '11_end.pth'}
+{'pixel_f1': 0.13, 'acc': 0.56, 'sen': 0.59, 'spe': 0.53, 'imagelevel_f1': 0.56, 'img_auc': 0.59, 'com_f1': 0.21, 'epoch': '21_end.pth'}
+{'pixel_f1': 0.22, 'acc': 0.54, 'sen': 0.81, 'spe': 0.28, 'imagelevel_f1': 0.42, 'img_auc': 0.55, 'com_f1': 0.29, 'epoch': '7_end.pth'}
+
+Columbia：
+{'pixel_f1': 0.44, 'acc': 0.66, 'sen': 0.98, 'spe': 0.36, 'imagelevel_f1': 0.52, 'img_auc': 0.84, 'com_f1': 0.48, 'epoch': '11_end.pth'}
+{'pixel_f1': 0.2, 'acc': 0.81, 'sen': 0.86, 'spe': 0.77, 'imagelevel_f1': 0.81, 'img_auc': 0.88, 'com_f1': 0.32, 'epoch': '35_end.pth'}
+
+NIST16：
+{'pixel_f1': 0.2, 'acc': 0.66, 'sen': 0.66, 'spe': 0.0, 'imagelevel_f1': 0.0, 'img_auc': 0.0, 'com_f1': 0.0, 'epoch': '3_end.pth'}
+
 ## Links
 If you want to train this Model with the CASIAv2 dataset, we provide a revised version of CASIAv2 datasets, which corrected several mistakes in the original datasets provided by the author. Details can find in the [link](https://github.com/SunnyHaze/CASIA2.0-Corrected-Groundtruth) shown below:
 
