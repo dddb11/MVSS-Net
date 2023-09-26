@@ -495,6 +495,7 @@ class DeepfakeDataset(Dataset):
             edge = self.transform_val_edge(image = edge)['image']
             
         else:
+            edge = self.edge_generator((mask>0.5) * 1.0)[0][0] ## without this line will cause a cv2.resize error, dsize().empty
             edge = self.transform_val_edge(image = edge)['image']
             edge = edge / 255.0
 
